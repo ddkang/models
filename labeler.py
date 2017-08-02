@@ -45,6 +45,8 @@ with detection_graph.as_default():
             ret, frame = cap.read()
             if not ret:
                 break
+            # BGR -> RGB
+            frame = frame[...,::-1]
             tf_frame = np.expand_dims(frame, axis=0)
             image_tensor = detection_graph.get_tensor_by_name('image_tensor:0')
             boxes = detection_graph.get_tensor_by_name('detection_boxes:0')
