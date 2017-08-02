@@ -10,8 +10,8 @@ import pandas as pd
 from PIL import Image
 from SlimModel import SlimModel, name_to_netinfo
 
-def get_fnames():
-    path = '/lfs/1/ddkang/specializer/yfcc100m/photos/500/'
+def get_fnames(DIR_NUM):
+    path = '/lfs/1/ddkang/specializer/yfcc100m/photos/%3d/' % DIR_NUM
     fnames = os.listdir(path)
     fnames.sort()
     fnames = map(lambda x: path + x, fnames)
@@ -53,27 +53,38 @@ def load_single_image(fname):
     pil_im = load_image(fname)
     img = preprocess_pil(pil_im)
     img = preproc_np(img)
-    return img
+    return fname, img
 
 def label(model, imgs):
     return model.raw_predict(imgs)
 
 def main():
+    DIR_NUM = 500
     BATCH_SIZE = 100
 
-    fnames = get_fnames()[0:10000]
+    fnames = get_fnames(DIR_NUM)[0:10000]
 
     model = SlimModel(name_to_netinfo['resnet_v1_152'], 100)
     model.load_model('weights/resnet_v1_152_2016_08_28.ckpt')
 
     pool = mp.Pool(10)
     imgs = []
-    for im in tqdm.tqdm(pool.imap_unordered(load_single_image, fnames), total=len(fnames)):
+    batch_fnames = []
+    df_all = []
+    for fname, im in tqdm.tqdm(pool.imap_unordered(load_single_image, fnames), total=len(fnames)):
         imgs.append(im)
+        batch_fnames.append(os.path.basename(fname))
         if len(imgs) == BATCH_SIZE:
             batch = np.stack(imgs)
             labels = label(model, batch)
+            df = pd.DataFrame(labels)
+            df.insert(0, 'fname', batch_fnames)
+            df_all.append(df)
             imgs = []
+            batch_fnames = []
+    df_all = pd.concat(df_all)
+    print df_all.shape
+    feather.write_dataframe(df_all, '%3d.feather' % DIR_NUM)
 
 if __name__ == '__main__':
     main()
