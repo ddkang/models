@@ -2,13 +2,20 @@ import argparse
 import csv
 import os
 import cv2
+import tqdm
 import numpy as np
 import tensorflow as tf
 
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as vis_util
 
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.333)
+gpu_options = tf.GPUOptions(
+        per_process_gpu_memory_fraction=0.3)
+config_proto = tf.ConfigProto(
+        gpu_options=gpu_options,)
+        # intra_op_parallelism_threads=8,
+        # inter_op_parallelism_threads=8,
+        # device_count={'CPU': 8})
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--video_in', required=True)
@@ -36,12 +43,11 @@ categories = label_map_util.convert_label_map_to_categories(
 category_index = label_map_util.create_category_index(categories)
 
 writer = csv.writer(open(args.csv_out, 'wb'))
-# cap = cv2.VideoCapture('/lfs/1/ddkang/noscope/data/videos/taipei-long.mp4')
 cap = cv2.VideoCapture(args.video_in)
 cap.set(cv2.CAP_PROP_POS_FRAMES, args.start_frame)
 with detection_graph.as_default():
-    with tf.Session(graph=detection_graph, config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-        for i in xrange(args.start_frame, args.start_frame + NB_FRAMES):
+    with tf.Session(graph=detection_graph, config=config_proto) as sess:
+        for i in tqdm.trange(args.start_frame, args.start_frame + NB_FRAMES):
             ret, frame = cap.read()
             if not ret:
                 break
