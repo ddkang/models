@@ -103,6 +103,7 @@ def main():
 
     USE_SWAG = True
     if USE_SWAG:
+        import swag
         cap = swag.VideoCapture(args.video_fname, args.index_fname)
     else:
         cap = cv2.VideoCapture(args.video_fname)
