@@ -1,20 +1,23 @@
 import argparse
 import csv
 import os
+
 import cv2
+import feather
 import tqdm
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as vis_util
 
-def set_gpu_options():
-    return
+def get_gpu_options():
     gpu_options = tf.GPUOptions(
-            per_process_gpu_memory_fraction=0.3)
+            per_process_gpu_memory_fraction=0.9)
     config_proto = tf.ConfigProto(
             gpu_options=gpu_options)
+    return config_proto
 
 def load_detection_graph(CKPT_PATH):
     detection_graph = tf.Graph()
@@ -39,7 +42,7 @@ def get_df(all_rows):
     return df
 
 def label_video(detection_graph, category_index, cap, feather_fname,
-                nb_frames=100000000, start_frame=0):
+                nb_frames=100000000, start_frame=0, config_proto=None):
     all_rows = []
     with detection_graph.as_default():
         with tf.Session(graph=detection_graph, config=config_proto) as sess:
@@ -49,8 +52,8 @@ def label_video(detection_graph, category_index, cap, feather_fname,
                 if not ret:
                     break
                 # BGR -> RGB
-                frame = frame[...,::-1]
-                tf_frame = np.expand_dims(frame, axis=0)
+                im = im[...,::-1]
+                tf_frame = np.expand_dims(im, axis=0)
                 image_tensor = detection_graph.get_tensor_by_name('image_tensor:0')
                 boxes = detection_graph.get_tensor_by_name('detection_boxes:0')
                 scores = detection_graph.get_tensor_by_name('detection_scores:0')
@@ -63,7 +66,7 @@ def label_video(detection_graph, category_index, cap, feather_fname,
                 scores = np.squeeze(scores)
                 classes = np.squeeze(classes).astype(np.int32)
                 for j, box in enumerate(boxes):
-                    if scores[j] < 0.3:
+                    if scores[j] < 0.0001:
                         continue
                     ymin, xmin, ymax, xmax = boxes[j]
                     # object_name = category_index[classes[j]]['name']
@@ -93,6 +96,7 @@ def main():
     parser.add_argument('--feather_fname', required=True, type=str)
     args = parser.parse_args()
 
+    config_proto = get_gpu_options()
     detection_graph = load_detection_graph(args.ckpt_path)
     category_index = get_category_index(args.label_path)
 
@@ -105,7 +109,7 @@ def main():
     cap.set(cv2.CAP_PROP_POS_FRAMES, args.start_frame)
 
     label_video(detection_graph, category_index, cap, args.feather_fname,
-                args.nb_frames, args.start_frame)
+                args.nb_frames, args.start_frame, config_proto=config_proto)
 
 if __name__ == '__main__':
     main()
