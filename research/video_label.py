@@ -31,12 +31,13 @@ def load_detection_graph(CKPT_PATH):
 
 def get_df(all_rows):
     df = pd.DataFrame(all_rows,
-                      columns=['frame', 'cname', 'conf', 'xmin', 'ymin', 'xmax', 'ymax'])
+                      columns=['frame', 'cname', 'conf', 'xmin', 'ymin', 'xmax', 'ymax','frame_byte_size'])
     f32 = ['conf', 'xmin', 'ymin', 'xmax', 'ymax']
     for f in f32:
         df[f] = df[f].astype('float32')
     df['frame'] = df['frame'].astype('int32')
     df['cname'] = df['cname'].astype('int8')
+    df['frame_byte_size'] = df['frame_byte_size'].astype('int32')
     df = df.sort_values(by=['frame', 'cname', 'conf'], ascending=[True, True, False])
     print(df)
     return df
@@ -51,6 +52,7 @@ def label_video(detection_graph, category_index, cap, feather_fname,
                 ret, im = cap.read()
                 if not ret:
                     break
+                frame_byte_size = len(cv2.imencode(".jpeg", im)[1])
                 # BGR -> RGB
                 im = im[...,::-1]
                 tf_frame = np.expand_dims(im, axis=0)
@@ -71,7 +73,7 @@ def label_video(detection_graph, category_index, cap, feather_fname,
                     ymin, xmin, ymax, xmax = boxes[j]
                     # object_name = category_index[classes[j]]['name']
                     object_name = classes[j] # saves hella space
-                    row = [i, object_name, scores[j], xmin, ymin, xmax, ymax]
+                    row = [i, object_name, scores[j], xmin, ymin, xmax, ymax, frame_byte_size]
                     all_rows.append(row)
 
     df = get_df(all_rows)
@@ -101,7 +103,7 @@ def main():
     category_index = get_category_index(args.label_path)
 
 
-    USE_SWAG = True
+    USE_SWAG = False
     if USE_SWAG:
         import swag
         cap = swag.VideoCapture(args.video_fname, args.index_fname)
