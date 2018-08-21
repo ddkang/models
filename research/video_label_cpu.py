@@ -17,7 +17,7 @@ def get_gpu_options():
             per_process_gpu_memory_fraction=0.3)
     config_proto = tf.ConfigProto(
             gpu_options=gpu_options)
-    return config_proto
+    return None
 
 def load_detection_graph(CKPT_PATH):
     detection_graph = tf.Graph()
